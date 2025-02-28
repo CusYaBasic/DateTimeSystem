@@ -2,6 +2,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY(DateTimeDebug);
+
 ADateTimeManager::ADateTimeManager()
 {
 
@@ -11,34 +13,50 @@ ADateTimeManager::ADateTimeManager()
 void ADateTimeManager::StartGameTime()
 {
     if (UWorld* World = GetWorld())
-    {
         World->GetTimerManager().SetTimer(GameTimeTimerHandle, this, &ADateTimeManager::TickTime, RealSecondsPerGameHour / 60.0f, true);
-    }
 }
 
 // Stop the game time loop
 void ADateTimeManager::StopGameTime()
 {
     if (UWorld* World = GetWorld())
-    {
         World->GetTimerManager().ClearTimer(GameTimeTimerHandle);
-    }
 }
 
 // Called every second (advances by 1 in-game minute)
 void ADateTimeManager::TickTime()
 {
     AdvanceCustomTime(0, 0, 1);
+    OnMinuteUpdated.Broadcast(CurrentCustomMinute);
 }
 
 // Advances the Custom Time
 void ADateTimeManager::AdvanceCustomTime(int32 Days, int32 Hours, int32 Minutes)
 {
+
     CurrentCustomMinute += Minutes;
     CurrentCustomHour += Hours;
     CurrentCustomDay += Days;
 
     NormalizeCustomDateTime();
+
+    FString M;
+    M.Append("Date: ");
+    M.Append(GetCurrentCustomDayName());
+    M.Append(" ");
+    M.Append(FString::FromInt(CurrentCustomDay));
+    M.Append(" ");
+    M.Append(GetCurrentCustomMonthName());
+    M.Append(" ");
+    M.Append(FString::FromInt(CurrentCustomYear));
+    M.Append(" ");
+    M.Append("Time: ");
+    M.Append(GetFormattedCustomTime());
+
+    if (bPrintDebug)
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, M);
+
+    UE_LOG(DateTimeDebug, Log, TEXT("%s"), *M);
 }
 
 // Normalizes time so that minutes/hours/days wrap properly
@@ -49,6 +67,7 @@ void ADateTimeManager::NormalizeCustomDateTime()
     {
         CurrentCustomMinute -= 60;
         CurrentCustomHour++;
+        OnHourUpdated.Broadcast(CurrentCustomHour);
     }
 
     // Normalize Hours
@@ -56,6 +75,7 @@ void ADateTimeManager::NormalizeCustomDateTime()
     {
         CurrentCustomHour -= 24;
         CurrentCustomDay++;
+        OnDayUpdated.Broadcast(GetCurrentCustomMonthName(), CurrentCustomDay);
     }
 
     // Normalize Days
@@ -63,11 +83,13 @@ void ADateTimeManager::NormalizeCustomDateTime()
     {
         CurrentCustomDay -= CustomMonths[CurrentCustomMonthIndex].DaysInMonth;
         CurrentCustomMonthIndex++;
+        OnMonthUpdated.Broadcast(GetCurrentCustomMonthName(), CurrentCustomMonthIndex - 1);
 
         if (CurrentCustomMonthIndex >= CustomMonths.Num()) // New Year
         {
             CurrentCustomMonthIndex = 0;
             CurrentCustomYear++;
+            OnYearUpdated.Broadcast(CurrentCustomYear);
         }
     }
 }
@@ -75,14 +97,15 @@ void ADateTimeManager::NormalizeCustomDateTime()
 // Gets the current day's name from the custom calendar
 FString ADateTimeManager::GetCurrentCustomDayName() const
 {
-    if (CustomDaysOfWeek.Num() == 0) return TEXT("Invalid Day");
+    if (CustomDaysOfWeek.Num() == 0)
+        return TEXT("Invalid Day");
 
     int32 DayIndex = (CurrentCustomDay - 1) % CustomWeekLength;
     return CustomDaysOfWeek.IsValidIndex(DayIndex) ? CustomDaysOfWeek[DayIndex] : TEXT("Unknown");
 }
 
 // Gets the current month's name from the custom calendar
-FString ADateTimeManager::GetCurrentMonthName() const
+FString ADateTimeManager::GetCurrentCustomMonthName() const
 {
     return CustomMonths.IsValidIndex(CurrentCustomMonthIndex) ? CustomMonths[CurrentCustomMonthIndex].Name : TEXT("Unknown");
 }
@@ -126,7 +149,6 @@ void ADateTimeManager::BeginPlay()
 
     Super::BeginPlay();
 }
-
 
 // Cleanup
 void ADateTimeManager::BeginDestroy()

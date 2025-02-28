@@ -4,6 +4,15 @@
 #include "Gameframework/Actor.h"
 #include "DateTimeManager.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(DateTimeDebug, Log, All);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMinuteUpdated, int32, NewMin);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHourUpdated, int32, NewHour);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDayUpdated, FString, NewDay, int32, NewDayNum);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeekUpdated, FString, NewWeek);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMonthUpdated, FString, NewMonth, int32, NewMonthNum);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnYearUpdated, int32, NewYear);
+
 USTRUCT(BlueprintType)
 struct FCustomMonth
 {
@@ -20,7 +29,7 @@ public:
     FCustomMonth() : Name(TEXT("")), DaysInMonth(0) {}
 
     // Custom constructor
-    FCustomMonth(FString InName, int32 InDays)
+    FCustomMonth(FString InName, uint32 InDays)
         : Name(InName), DaysInMonth(InDays) {
     }
 };
@@ -34,37 +43,51 @@ class DATETIMESYSTEM_API ADateTimeManager : public AActor
 public:
     ADateTimeManager();
 
-    virtual void BeginDestroy() override;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnMinuteUpdated OnMinuteUpdated;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnHourUpdated OnHourUpdated;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnDayUpdated OnDayUpdated;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnWeekUpdated OnWeekUpdated;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnMonthUpdated OnMonthUpdated;
+    UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
+    FOnYearUpdated OnYearUpdated;
 
     // Use default days/months
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Calendar")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
+    bool bPrintDebug = false;
+    // Use default days/months
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
     bool bUseDefaultDateTime = true;
     // Custom days of the week
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Calendar")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
     TArray<FString> CustomDaysOfWeek;
     // Custom months of the year
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Calendar")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
     TArray<FCustomMonth> CustomMonths;
     // Custom length of days for how long a week is
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Custom Calendar")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
     int32 CustomWeekLength;
     // Custom year
-    UPROPERTY(BlueprintReadOnly, Category = "Custom Calendar")
+    UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomYear = 2025;
     // The index for the current month
-    UPROPERTY(BlueprintReadOnly, Category = "Custom Calendar")
+    UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomMonthIndex;
     // The index for the current day
-    UPROPERTY(BlueprintReadOnly, Category = "Custom Calendar")
+    UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomDay;
     // The current custom hour
-    UPROPERTY(BlueprintReadOnly, Category = "Custom Calendar")
+    UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomHour;
     // The current custom hour
-    UPROPERTY(BlueprintReadOnly, Category = "Custom Calendar")
+    UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomMinute;
     // How many real life seconds per in-game hour (Default: 60s = 1 hour in-game)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Time Control")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Time")
     float RealSecondsPerGameHour = 60; 
 
     /**
@@ -73,7 +96,7 @@ public:
      * Starts the in-game time progression.
      * 
      */
-    UFUNCTION(BlueprintCallable, Category = "Time")
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Time")
     void StartGameTime();
     /**
      * @brief StopGameTime
@@ -81,7 +104,7 @@ public:
      * Stops the in-game time progression.
      * 
      */
-    UFUNCTION(BlueprintCallable, Category = "Time")
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Time")
     void StopGameTime();
     /**
      * @brief AdvanceCustomTime
@@ -93,7 +116,7 @@ public:
      * @param Minutes The number of minutes to advance.
      * 
      */
-    UFUNCTION(BlueprintCallable, Category = "Custom Calendar")
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
     void AdvanceCustomTime(int32 Days, int32 Hours, int32 Minutes);
     /**
      * @brief GetCurrentCustomDayName
@@ -102,7 +125,7 @@ public:
      * 
      * @return The name of the current day in the custom calendar.
      */
-    UFUNCTION(BlueprintCallable, Category = "Custom Calendar")
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
     FString GetCurrentCustomDayName() const;
 
     /**
@@ -113,8 +136,8 @@ public:
      * @return The name of the current month in the custom calendar.
      * 
      */
-    UFUNCTION(BlueprintCallable, Category = "Custom Calendar")
-    FString GetCurrentMonthName() const;
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
+    FString GetCurrentCustomMonthName() const;
 
     /**
      * @brief GetFormattedCustomTime
@@ -124,11 +147,12 @@ public:
      * @return A formatted string representing the current custom time.
      * 
      */
-    UFUNCTION(BlueprintCallable, Category = "Custom Calendar")
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
     FString GetFormattedCustomTime() const;
 
 protected:
     virtual void BeginPlay() override;
+    virtual void BeginDestroy() override;
 
 
 private:
