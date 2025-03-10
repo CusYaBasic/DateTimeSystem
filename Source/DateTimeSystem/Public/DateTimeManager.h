@@ -56,6 +56,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "DateTime|Bind")
     FOnYearUpdated OnYearUpdated;
 
+    // Should we start time on BeginPlay();?
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
+    bool bStartOnBeginPlay = false;
     // Use default days/months
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
     bool bPrintDebug = false;
@@ -70,22 +73,22 @@ public:
     TArray<FCustomMonth> CustomMonths;
     // Custom length of days for how long a week is
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Custom Calendar")
-    int32 CustomWeekLength;
+    int32 CustomWeekLength = 7;
     // Custom year
     UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
     int32 CurrentCustomYear = 2025;
     // The index for the current month
     UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
-    int32 CurrentCustomMonthIndex;
+    int32 CurrentCustomMonthIndex = 1;
     // The index for the current day
     UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
-    int32 CurrentCustomDay;
+    int32 CurrentCustomDay = 1;
     // The current custom hour
     UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
-    int32 CurrentCustomHour;
+    int32 CurrentCustomHour = 12;
     // The current custom hour
     UPROPERTY(BlueprintReadOnly, Category = "DateTime|Custom Calendar")
-    int32 CurrentCustomMinute;
+    int32 CurrentCustomMinute = 0;
     // How many real life seconds per in-game hour (Default: 60s = 1 hour in-game)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DateTime|Time")
     float RealSecondsPerGameHour = 60; 
@@ -98,6 +101,14 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "DateTime|Time")
     void StartGameTime();
+    /**
+     * @brief SetGameTime
+     *
+     * Sets the in-game time.
+     *
+     */
+    UFUNCTION(BlueprintCallable, Category = "DateTime|Time")
+    void SetGameTime(int32 Minute, int32 Hour, int32 Day, int32 Month, int32 Year);
     /**
      * @brief StopGameTime
      * 
@@ -127,7 +138,6 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
     FString GetCurrentCustomDayName() const;
-
     /**
      * @brief GetCurrentMonthName
      * 
@@ -138,7 +148,6 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "DateTime|Custom Calendar")
     FString GetCurrentCustomMonthName() const;
-
     /**
      * @brief GetFormattedCustomTime
      * 
@@ -152,7 +161,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
-    virtual void BeginDestroy() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 
 private:

@@ -12,15 +12,25 @@ ADateTimeManager::ADateTimeManager()
 // Start the game time loop
 void ADateTimeManager::StartGameTime()
 {
-    if (UWorld* World = GetWorld())
-        World->GetTimerManager().SetTimer(GameTimeTimerHandle, this, &ADateTimeManager::TickTime, RealSecondsPerGameHour / 60.0f, true);
+    GetWorld()->GetTimerManager().SetTimer(GameTimeTimerHandle, this, &ADateTimeManager::TickTime, RealSecondsPerGameHour / 60.0f, true);
+}
+
+void ADateTimeManager::SetGameTime(int32 Minute, int32 Hour, int32 Day, int32 Month, int32 Year)
+{
+    CurrentCustomMinute = Minute;
+    CurrentCustomHour = Hour;
+    CurrentCustomDay = Day;
+    CurrentCustomMonthIndex = Month;
+    CurrentCustomYear = Year;
 }
 
 // Stop the game time loop
 void ADateTimeManager::StopGameTime()
 {
-    if (UWorld* World = GetWorld())
-        World->GetTimerManager().ClearTimer(GameTimeTimerHandle);
+    if (!GetWorld()->GetTimerManager().TimerExists(GameTimeTimerHandle))
+        return;
+
+    GetWorld()->GetTimerManager().ClearTimer(GameTimeTimerHandle);
 }
 
 // Called every second (advances by 1 in-game minute)
@@ -100,8 +110,8 @@ FString ADateTimeManager::GetCurrentCustomDayName() const
     if (CustomDaysOfWeek.Num() == 0)
         return TEXT("Invalid Day");
 
-    int32 DayIndex = (CurrentCustomDay - 1) % CustomWeekLength;
-    return CustomDaysOfWeek.IsValidIndex(DayIndex) ? CustomDaysOfWeek[DayIndex] : TEXT("Unknown");
+    int32 DI = (CurrentCustomDay - 1) % CustomWeekLength;
+    return CustomDaysOfWeek.IsValidIndex(DI) ? CustomDaysOfWeek[DI] : TEXT("Unknown");
 }
 
 // Gets the current month's name from the custom calendar
@@ -147,12 +157,15 @@ void ADateTimeManager::BeginPlay()
         CurrentCustomMinute = 0;
     }
 
+    if (bStartOnBeginPlay)
+        StartGameTime();
+
     Super::BeginPlay();
 }
 
 // Cleanup
-void ADateTimeManager::BeginDestroy()
+void ADateTimeManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     StopGameTime();
-    Super::BeginDestroy();
+    Super::EndPlay(EndPlayReason);
 }
